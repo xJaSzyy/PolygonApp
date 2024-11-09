@@ -1,0 +1,10 @@
+# Игнорируем файлы и папки для frontend
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.env
+
+# Игнорируем файлы и папки для backend
+/backend/bin/
+/backend/obj/
+/backend/.env
+/backend/.vs

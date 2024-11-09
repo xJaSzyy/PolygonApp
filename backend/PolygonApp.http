@@ -1,0 +1,6 @@
+@PolygonApp_HostAddress = http://localhost:5076
+
+GET {{PolygonApp_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
