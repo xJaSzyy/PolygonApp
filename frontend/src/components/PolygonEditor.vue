@@ -71,7 +71,7 @@ export default {
 
           try {
             const response = await axios.post(
-              "http://localhost:5076/api/Polygon/polygon/checkPoint",
+              "http://localhost:5000/api/Polygon/polygon/checkPoint",
               {
                 point: { latitude: lat, longitude: lng },
                 polygons: polygonCoordinates.map(coords => ({ Points: coords }))
