@@ -1,6 +1,7 @@
+using PolygonApp.Models;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Controllers
+namespace PolygonApp.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -20,7 +21,7 @@ namespace Controllers
             return Ok(new { point = request.Point, isPointInside = false });
         }
 
-        private bool IsPointInPolygon(Point point, List<Point> polygon)
+        private bool IsPointInPolygon(PointData point, List<PointData> polygon)
         {
             int n = polygon.Count;
             bool inside = false;
@@ -39,21 +40,10 @@ namespace Controllers
             return inside;
         }
 
-        public class Point
-        {
-            public double Latitude { get; set; }
-            public double Longitude { get; set; }
-        }
-
-        public class Polygon
-        {
-            public List<Point> Points { get; set; } = new();
-        }
-
         public class RequestModel
         {
-            public Point Point { get; set; } = new();
-            public List<Polygon> Polygons { get; set; } = new();
+            public PointData Point { get; set; } = new();
+            public List<PolygonData> Polygons { get; set; } = new();
         }
 
     }
