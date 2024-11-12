@@ -4,11 +4,22 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     ports:
-      - "5000:5000"  
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+      - "5000:5000"
+    container_name: polygon_api  
     depends_on:
+      - db
       - frontend
+
+  db:
+    image: postgres:latest
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - db_data:/var/lib/postgresql/data 
+    container_name: polygon_db
 
   frontend:
     build:
@@ -16,3 +27,6 @@ services:
       dockerfile: frontend/Dockerfile
     ports:
       - "8080:80"  
+
+volumes:
+  db_data:

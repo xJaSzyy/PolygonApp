@@ -1,7 +1,7 @@
-namespace PolygonApp.Models
+namespace PolygonApp.Models;
+
+public class PolygonData
 {
-    public class PolygonData
-    {
-        public List<PointData> Points { get; set; } = new();
-    }
+    public int Id { get; set; }
+    public List<PointData> Points { get; set; } = new();
 }

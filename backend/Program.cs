@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using PolygonApp.Models;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(options =>
@@ -10,6 +13,10 @@ builder.Services.AddCors(options =>
               .AllowCredentials(); 
     });
 });
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 
 builder.Services.AddControllers();
 

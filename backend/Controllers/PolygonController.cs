@@ -1,107 +1,112 @@
 using PolygonApp.Models;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
-using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
-namespace PolygonApp.Controllers
+namespace PolygonApp.Controllers;
+
+[ApiController]
+[Route("api/polygon")]
+public class PolygonController : ControllerBase
 {
-    [ApiController]
-    [Route("api/polygon")]
-    public class PolygonController : ControllerBase
+
+    [HttpPost("contains")]
+    public IActionResult CheckPointInPolygons([FromBody] RequestModel request)
     {
-        private const string FilePath = "polygons.json";
-
-        [HttpPost("contains")]
-        public IActionResult CheckPointInPolygons([FromBody] RequestModel request)
+        foreach (var polygon in request.Polygons)
         {
-            foreach (var polygon in request.Polygons)
+            bool isPointInside = IsPointInPolygon(request.Point, polygon.Points);
+            if (isPointInside)
             {
-                bool isPointInside = IsPointInPolygon(request.Point, polygon.Points);
-                if (isPointInside)
-                {
-                    return Ok(new { point = request.Point, isPointInside });
-                }
+                return Ok(new { point = request.Point, isPointInside });
             }
-            return Ok(new { point = request.Point, isPointInside = false });
+        }
+        return Ok(new { point = request.Point, isPointInside = false });
+    }
+
+    private bool IsPointInPolygon(PointData point, List<PointData> polygon)
+    {
+        int n = polygon.Count;
+        bool inside = false;
+        double x = point.Longitude, y = point.Latitude;
+
+        for (int i = 0, j = n - 1; i < n; j = i++)
+        {
+            double xi = polygon[i].Longitude, yi = polygon[i].Latitude;
+            double xj = polygon[j].Longitude, yj = polygon[j].Latitude;
+
+            bool intersect = ((yi > y) != (yj > y)) &&
+                             (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            if (intersect)
+                inside = !inside;
+        }
+        return inside;
+    }
+
+    private readonly ApplicationDbContext _context;
+
+    public PolygonController(ApplicationDbContext context)
+    {
+        _context = context;
+    }
+
+    [HttpPost("save")]
+    public async Task<IActionResult> SavePolygons([FromBody] PolygonRequestModel request)
+    {
+        if (request.Polygons == null || request.Polygons.Any(p => p.Points == null || p.Points.Count < 3))
+        {
+            return BadRequest("Некорректные данные о полигонах");
         }
 
-        private bool IsPointInPolygon(PointData point, List<PointData> polygon)
+        foreach (var polygonRequest in request.Polygons)
         {
-            int n = polygon.Count;
-            bool inside = false;
-            double x = point.Longitude, y = point.Latitude;
+            var polygon = new PolygonData();
+            _context.Polygons.Add(polygon);
+            await _context.SaveChangesAsync();
 
-            for (int i = 0, j = n - 1; i < n; j = i++)
+            var points = polygonRequest.Points.Select(point => new PointData
             {
-                double xi = polygon[i].Longitude, yi = polygon[i].Latitude;
-                double xj = polygon[j].Longitude, yj = polygon[j].Latitude;
+                Latitude = point.Latitude,
+                Longitude = point.Longitude,
+                PolygonDataId = polygon.Id,
+            }).ToList();
 
-                bool intersect = ((yi > y) != (yj > y)) &&
-                                 (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-                if (intersect)
-                    inside = !inside;
-            }
-            return inside;
+            _context.Points.AddRange(points);
         }
 
-        [HttpPost("save")]
-        public async Task<IActionResult> SavePolygons([FromBody] RequestModel request)
-        {
-            if (request.Polygons == null || request.Polygons.Any(p => p.Points == null || p.Points.Count < 3))
-            {
-                return BadRequest("Некорректные данные о полигонах");
-            }
-
-            var existingPolygons = await LoadPolygonsFromFile();
-
-            existingPolygons.AddRange(request.Polygons);
-            await SavePolygonsToFile(existingPolygons);
-
-            return Ok(new { message = "Полигоны успешно сохранены", polygons = request.Polygons });
-        }
+        await _context.SaveChangesAsync();
 
 
-        [HttpGet("load")]
-        public async Task<IActionResult> LoadPolygons()
-        {
-            var polygons = await LoadPolygonsFromFile();
-            return Ok(polygons);
-        }
+        return Ok(new { message = "Полигоны успешно сохранены", polygons = request.Polygons });
+    }
 
-        private async Task SavePolygonsToFile(List<PolygonData> polygons)
-        {
-            var json = JsonSerializer.Serialize(polygons, new JsonSerializerOptions { WriteIndented = true });
-            await System.IO.File.WriteAllTextAsync(FilePath, json);
-        }
 
-        private async Task<List<PolygonData>> LoadPolygonsFromFile()
-        {
-            if (!System.IO.File.Exists(FilePath))
-            {
-                return new List<PolygonData>();
-            }
+    [HttpGet("load")]
+    public async Task<IActionResult> LoadPolygons()
+    {
+        var polygons = await _context.Polygons
+            .Include(p => p.Points)
+            .ToListAsync();
+        return Ok(polygons);
+    }
 
-            var json = await System.IO.File.ReadAllTextAsync(FilePath);
-            return JsonSerializer.Deserialize<List<PolygonData>>(json) ?? new List<PolygonData>();
-        }
+    [HttpDelete("clear")]
+    public async Task<IActionResult> DeleteAllPolygons()
+    {
+        _context.Points.RemoveRange(_context.Points);
+        _context.Polygons.RemoveRange(_context.Polygons);
+        await _context.SaveChangesAsync();
 
-        [HttpDelete("clear")]
-        public IActionResult DeleteAllPolygons()
-        {
-            if (System.IO.File.Exists(FilePath))
-            {
-                System.IO.File.Delete(FilePath);
-            }
+        return Ok(new { message = "Все полигоны успешно удалены" });
+    }
 
-            return Ok(new { message = "Все полигоны успешно удалены" });
-        }
+    public class RequestModel
+    {
+        public PointData Point { get; set; } = new();
+        public List<PolygonData> Polygons { get; set; } = new();
+    }
 
-        public class RequestModel
-        {
-            public PointData Point { get; set; } = new();
-            public List<PolygonData> Polygons { get; set; } = new();
-        }
+    public class PolygonRequestModel
+    {
+        public List<PolygonData> Polygons { get; set; } = new();
     }
 }
